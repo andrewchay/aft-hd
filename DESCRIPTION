@@ -1,0 +1,9 @@
+Package: aftHD
+Title: Fit sparse weighted linear regression model using coordinate
+        descent algorithm
+Version: 1.0-0
+Author: Hao Chai
+Description: aftHD computes the weighted penalized least square estimates. It first computes the LASSO solution and uses it as a warm start value for the MCP/SCAD solution. The package also provides local convexity of the solution.
+Maintainer: Hao Chai <hao.chai@yale.edu>
+License: GPL (>=2)
+Packaged: 2015-12-10 20:00:52 UTC; hchai

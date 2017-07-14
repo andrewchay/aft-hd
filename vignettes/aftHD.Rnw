@@ -1,0 +1,113 @@
+\documentclass{article}
+
+% \VignetteIndexEntry{Using the aftHD Package}
+% \VignetteKeyword{coordinate descent, MCP}
+
+\title{Using the \texttt{aftHD} Package}
+\author{Hao Chai}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\maketitle
+
+<<echo=false,results=hide>>=
+library(aftHD)
+@ 
+
+\section{Introduction}
+Though this package could solve penalized weighted least square problem, it was originally written for high dimensional accelerated failure time model. To set up the problem, let $T_i$ be the logarithm of the failure time and $X_i$ a length-$p$ covariate vector for the $i$th subject in a random sample of size $n$. The AFT model assumes
+\begin{equation}\label{equation1}
+T_i=\beta_0+X_i'\beta+\epsilon_i,\hspace{0.5cm} i=1,\cdots,n,
+\end{equation}
+where $\beta_0$ is the intercept, $\beta\in\mathcal{R}^{d}$ is the  regression coefficient, and $\epsilon_i$ is the error term. As
+$T_i$ is subject to right censoring, we can only observe $(Y_i, \delta_i, X_i)$, where $Y_i=\min\{T_i,C_i\}$, $C_i$ is the logarithm of the censoring time, and $\delta_i=1\{T_i\leq C_i\}$ is the censoring indicator. Assume that a random sample $(Y_i, \delta_i, X_i)$,  $i=1,\cdots,n$, from the same distribution is available.
+A computationally more feasible alternative is the weighted least squares approach by Stute, which is equivalent to the inverse probability weighting. It involves the minimization of a weighted least squares objective function and has been used in AFT models with high dimensional covariates. The Stute estimator uses Kaplan-Meier weights to account for censoring in the least squares regression. The Kaplan-Meier weights are given in the following form,
+$$\omega_{n1}=\frac{\delta_{(1)}}{n},\hspace{0.5cm} \omega_{ni}=\frac{\delta_{(i)}}{n-i+1}\prod_{j=1}^{i-1}(\frac{n-j}{n-j+1})^{\delta_{(j)}},\hspace{0.5cm}
+i=2,\cdots,n.$$
+Essentially, we want to minimize 
+\begin{equation}
+\label{equation5}L_{\tilde{\lambda}}(\beta_0, \beta)=\frac{1}{2}\sum_{i=1}^n\omega_{ni}(Y_{(i)}-\beta_0-X_{(i)}'\beta)^2
++\sum_{j=1}^d\rho(r_{nj}|\beta_j|; \lambda; \gamma ), 
+\end{equation}
+for MCP penalty, and
+\begin{equation}
+\label{equation6}L_\lambda(\beta_0, \beta)=\frac{1}{2}\sum_{i=1}^n\omega_{ni}(Y_{(i)}-\beta_0-X_{(i)}'\beta)^2
++\lambda\sum_{j=1}^dr_{nj}|\beta_j|,
+\end{equation}
+for LASSO penalty.
+Here $r_{nj}=\sqrt{\sum_{i=1}^n\omega_{ni}(X_{(i)j}-\bar{X}_{\omega j})^2}$ and $\rho$ is defined as
+\begin{equation}
+\rho(|t|;\lambda,\kappa) =\lambda\int_0^{|t|}(1-\frac{\kappa x}{\lambda})^+dx.
+\end{equation}
+
+The \texttt{aftHD} package consists of five functions.
+
+\begin{description}
+\item{\texttt{weighted.sparsenet}}  A function to fit the penalized weighted least square regression using coordinate descent algorithm. 
+\item{\texttt{convexity}} A function to compute the minimum eigen value of the Hessian matrix of the penalized weighted least square regression problem.
+\item{\texttt{bic.sparsenet}} A function that chooses the best tuning parameters using BIC criterion.
+\item{\texttt{cv.sparsenet}} A function performs $k$-fold cross validation for MCP/SCAD penalized regression models over a grid of values for parameter $\lambda$ and $\kappa$.
+\item{\texttt{paths.plot}} A function plots the solution paths of LASSO and MCP solutions.
+\end{description}
+
+The main function is \texttt{weighted.sparsenet}, which searches the solution over the $\lambda-\kappa$ grid. It uses LASSO solution as the initial value for coordinate descent algorithm and computes the MCP solutions. Specifically, for a fixed $\lambda$, the program starts off from the solution when $\kappa$ equals zero (equivalent to LASSO solution), and increases $\kappa$ by a small amount in each step and calculates the minimizer of (\ref{equation5}) at that $\kappa$ level. When $\kappa$ hits \texttt{kappa0}, the program will go to next $\lambda$ along the $\lambda$ axis and repeat the previous procedure.
+
+\section{Examples}
+A simple example illustrates how to use \texttt{weighted.sparsenet} to fit the weighted least square model. It also shows how to use \texttt{bic.sparsenet} and \texttt{cv.sparsenet} to choose the tuning parameters.
+<<>>=
+X = matrix(rnorm(3000), nrow = 60)
+beta0 = c(rep(200, 5), rep(0, 45))
+y = rnorm(60) + X %*% beta0
+delta = rep(1, 60)
+result = weighted.sparsenet(X, y, delta, n_kappa = 10, kappa0 = 0.99)
+bic.result = bic.sparsenet(result, X, y)
+cv.result = cv.sparsenet(result, X, y, delta, n_kappa = 5, 
+                         kappa0 = 0.99)
+a = convexity(result, concave.rm = F)
+@
+
+\section{Graphics}
+%' \begin{figure}[H]
+%' \centering
+%' <<echo = false, width = 3, height = 3, fig = TRUE>>=
+%' library(spatstat)
+%' u = a$index[, c(1, 2)]
+%' uu = matrix(rep(0, result$n_lambda * result$n_kappa), nrow = 100)
+%' uu[u] = a$index[, 4]
+%' im.uu = im(uu)
+%' plot(im.uu, ylim = 0:100, xlab = expression(kappa),
+%'      ylab = expression(lambda), col = heat.colors(10), 
+%'      main = "Heatmap", cex.main = 0.7, cex.axis = 0.7, cex.lab = 0.7)
+%' axis(1, c(1, result$n_kappa), cex.main = 0.7, cex.axis = 0.7, 
+%'      cex.lab = 0.7)
+%' axis(2, c(1, result$n_lambda), pos = -10, cex.main = 0.7, 
+%'      cex.axis = 0.7, cex.lab = 0.7)
+%' @
+%' \caption{Minimal eigen value of the Hessian matrix over the tuning parameters grid}
+%' \label{fig:1}
+%' \end{figure}
+
+% Figure~\ref{fig:1} shows the minimal eigen value of the Hessian matrix of the penalized least square problem over the $\lambda - \kappa$ grid. As we can see, at some $\lambda - \kappa$ pairs, the minimal eigen values are non-positive, showing the penalized least square is locally concave at the local minimizer. Hence the solution given by the coordinate descent algorithm may fail due to the non-convexity. 
+Figure~\ref{fig:2} and figure~\ref{fig:3} show the solution paths corresonding to MCP penalty and LASSO penalty.
+
+
+
+\begin{figure}
+\centering
+<<echo = true, width = 4, height = 3, fig = TRUE>>= h
+paths.plot(result, n_kappa = floor(result$n_kappa / 2))
+@
+\caption{Paths plot for MCP solution}
+\label{fig:2}
+\end{figure}
+
+\begin{figure}
+\centering
+<<echo = true, width = 4, height = 3, fig = TRUE>>= h
+paths.plot(result, "lasso")
+@
+\caption{Pahts plot for LASSO solution}
+\label{fig:3}
+\end{figure}
+
+\end{document}

@@ -1,0 +1,2 @@
+export(weighted.sparsenet, convexity, bic.sparsenet, cv.sparsenet, paths.plot)
+useDynLib(aftHD)

@@ -1,0 +1,9 @@
+NEWS/Changelog
+1.1-1   2015-01-11
+    o   Fixed a bug in mcp penalty.
+1.1-0	2013-08-03
+    o	Support SCAD penalty.
+    o	Adjusted the default centralization method.
+
+1.0-0	2012-05-17
+    o	This is the first release.
